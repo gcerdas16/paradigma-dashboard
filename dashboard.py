@@ -284,7 +284,7 @@ def group_bets_by_event_date(bets):
         g["total_stake"] = round(g["total_stake"], 2)
         g["count"] = len(g["bets"])
 
-    return list(groups.values())
+    return list(dict(sorted(groups.items())).values())
 
 
 @app.route("/")
