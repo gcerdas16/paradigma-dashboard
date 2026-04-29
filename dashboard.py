@@ -154,6 +154,36 @@ def format_bet_for_display(bet):
         bet["created_at_cr"] = "—"
         bet["created_at_date"] = "—"
 
+    # Fecha/hora del evento (commence_time)
+    ct = bet.get("commence_time")
+    if ct:
+        try:
+            if isinstance(ct, str):
+                ct_dt = datetime.fromisoformat(ct.replace("Z", "+00:00"))
+            else:
+                ct_dt = ct
+            if ct_dt.tzinfo is None:
+                ct_dt = ct_dt.replace(tzinfo=timezone.utc)
+            cr_event = ct_dt.astimezone(CR_TZ)
+            bet["event_date_cr"] = cr_event.strftime("%d/%m %H:%M")
+            diff = ct_dt - datetime.now(timezone.utc)
+            if diff.total_seconds() > 0:
+                hours = int(diff.total_seconds() // 3600)
+                mins = int((diff.total_seconds() % 3600) // 60)
+                if hours >= 24:
+                    days = hours // 24
+                    bet["event_eta"] = f"en {days}d {hours % 24}h"
+                else:
+                    bet["event_eta"] = f"en {hours}h{mins:02d}m"
+            else:
+                bet["event_eta"] = "jugado"
+        except Exception:
+            bet["event_date_cr"] = "—"
+            bet["event_eta"] = "—"
+    else:
+        bet["event_date_cr"] = "—"
+        bet["event_eta"] = "—"
+
     sk = bet["sport_key"] or ""
     if "soccer" in sk:
         bet["sport_type"] = "Fútbol"
@@ -187,7 +217,74 @@ def format_bet_for_display(bet):
     else:
         bet["pnl_display"] = "—"
 
+    # Ganancia potencial: stake * (odds - 1)
+    odds = bet.get("odds_at_bet") or 0
+    stake = bet.get("stake") or 0
+    bet["potential_win"] = round(stake * (odds - 1), 2) if odds > 1 else 0
+
     return bet
+
+
+def group_bets_by_event_date(bets):
+    """Agrupa apuestas pendientes por fecha del evento."""
+    from collections import OrderedDict
+    groups = OrderedDict()
+    now_cr = datetime.now(timezone.utc).astimezone(CR_TZ)
+    today = now_cr.date()
+
+    DAYS_ES = ["Lunes", "Martes", "Mi\u00e9rcoles", "Jueves", "Viernes", "S\u00e1bado", "Domingo"]
+    MONTHS_ES = ["", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+                 "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+    for bet in bets:
+        ct = bet.get("commence_time")
+        if ct:
+            try:
+                if isinstance(ct, str):
+                    ct_dt = datetime.fromisoformat(ct.replace("Z", "+00:00"))
+                else:
+                    ct_dt = ct
+                if ct_dt.tzinfo is None:
+                    ct_dt = ct_dt.replace(tzinfo=timezone.utc)
+                event_date = ct_dt.astimezone(CR_TZ).date()
+            except Exception:
+                event_date = today
+        else:
+            event_date = today
+
+        if event_date not in groups:
+            diff_days = (event_date - today).days
+            if diff_days == 0:
+                label = "Hoy"
+                dot_class = "dot-today"
+            elif diff_days == 1:
+                label = "Ma\u00f1ana"
+                dot_class = "dot-today"
+            elif diff_days <= 7:
+                label = DAYS_ES[event_date.weekday()]
+                dot_class = "dot-week"
+            else:
+                label = DAYS_ES[event_date.weekday()]
+                dot_class = "dot-later"
+
+            date_str = f"{event_date.day} {MONTHS_ES[event_date.month]}"
+            groups[event_date] = {
+                "label": label,
+                "date_str": date_str,
+                "dot_class": dot_class,
+                "bets": [],
+                "total_stake": 0,
+            }
+
+        groups[event_date]["bets"].append(bet)
+        groups[event_date]["total_stake"] += bet.get("stake") or 0
+
+    # Round totals
+    for g in groups.values():
+        g["total_stake"] = round(g["total_stake"], 2)
+        g["count"] = len(g["bets"])
+
+    return list(groups.values())
 
 
 @app.route("/")
@@ -195,11 +292,18 @@ def index():
     bets = get_bets()
     stats = compute_stats(bets)
     display_bets = [format_bet_for_display(b) for b in bets]
+
+    pending_bets = [b for b in display_bets if b["result"] is None]
+    settled_bets = [b for b in display_bets if b["result"] is not None]
+    pending_groups = group_bets_by_event_date(pending_bets)
+
     now_cr = datetime.now(timezone.utc).astimezone(CR_TZ)
     return render_template(
         "dashboard.html",
         stats=stats,
         bets=display_bets,
+        pending_groups=pending_groups,
+        settled_bets=settled_bets,
         now=now_cr.strftime("%d/%m/%Y %H:%M"),
     )
 
