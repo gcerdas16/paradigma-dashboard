@@ -32,7 +32,8 @@ def get_bets():
                    bankroll_before, result, pnl, bankroll_after,
                    clv_percent, settled_at, is_paper,
                    COALESCE(bet_type, 'value') as bet_type,
-                   arb_group_id, arb_profit_percent
+                   arb_group_id, arb_profit_percent,
+                   avg_ev_percent, num_books
             FROM bets
             ORDER BY id DESC
         """))

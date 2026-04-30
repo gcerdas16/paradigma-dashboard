@@ -342,7 +342,13 @@
                 </div>
                 <div class="card-row"><span class="label">Casa</span><span class="val">{{ bet.book_title }}</span></div>
                 <div class="card-row"><span class="label">Stake</span><span class="val">${{ "%.2f"|format(bet.stake) }}</span></div>
-                <div class="card-row"><span class="label">EV</span><span class="val c-green">+{{ "%.1f"|format(bet.ev_percent) }}%</span></div>
+                <div class="card-row"><span class="label">EV (Pinnacle)</span><span class="val c-green">+{{ "%.1f"|format(bet.ev_percent) }}%</span></div>
+                {% if bet.avg_ev_percent is not none %}
+                <div class="card-row"><span class="label">EV (Mercado)</span><span class="val {% if bet.avg_ev_percent >= 0 %}c-green{% else %}c-red{% endif %}">{{ "%+.1f"|format(bet.avg_ev_percent) }}%</span></div>
+                {% endif %}
+                {% if bet.num_books %}
+                <div class="card-row"><span class="label">Casas</span><span class="val">{{ bet.num_books }} books</span></div>
+                {% endif %}
                 <div class="potential"><span class="label">Si gana</span><span class="val">+${{ "%.2f"|format(bet.potential_win) }}</span></div>
             </div>
             {% endfor %}
