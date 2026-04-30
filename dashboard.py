@@ -30,7 +30,9 @@ def get_bets():
                    fair_prob, ev_percent, kelly_stake_percent,
                    pinnacle_odds_at_bet, bookmaker_link, stake,
                    bankroll_before, result, pnl, bankroll_after,
-                   clv_percent, settled_at, is_paper
+                   clv_percent, settled_at, is_paper,
+                   COALESCE(bet_type, 'value') as bet_type,
+                   arb_group_id, arb_profit_percent
             FROM bets
             ORDER BY id DESC
         """))
@@ -293,17 +295,56 @@ def index():
     stats = compute_stats(bets)
     display_bets = [format_bet_for_display(b) for b in bets]
 
-    pending_bets = [b for b in display_bets if b["result"] is None]
-    settled_bets = [b for b in display_bets if b["result"] is not None]
+    # Separar por tipo: value vs arb
+    value_bets = [b for b in display_bets if b.get("bet_type", "value") == "value"]
+    arb_bets = [b for b in display_bets if b.get("bet_type") == "arb"]
+
+    pending_bets = [b for b in value_bets if b["result"] is None]
+    settled_bets = [b for b in value_bets if b["result"] is not None]
     pending_groups = group_bets_by_event_date(pending_bets)
+
+    # Arb: agrupar por arb_group_id
+    arb_groups = {}
+    for b in arb_bets:
+        gid = b.get("arb_group_id") or b["id"]
+        if gid not in arb_groups:
+            arb_groups[gid] = {
+                "group_id": gid,
+                "event": f"{b['home_team']} vs {b['away_team']}",
+                "market": b["market"],
+                "profit_percent": b.get("arb_profit_percent") or 0,
+                "legs": [],
+                "total_stake": 0,
+                "result": None,
+                "total_pnl": 0,
+            }
+        arb_groups[gid]["legs"].append(b)
+        arb_groups[gid]["total_stake"] += b.get("stake") or 0
+        if b["result"] is not None:
+            arb_groups[gid]["result"] = b["result"]
+            arb_groups[gid]["total_pnl"] += b.get("pnl") or 0
+
+    # Stats por tipo
+    value_stats = compute_stats(value_bets)
+    arb_stats = {
+        "total": len(arb_groups),
+        "total_staked": round(sum(g["total_stake"] for g in arb_groups.values()), 2),
+        "total_pnl": round(sum(g["total_pnl"] for g in arb_groups.values()), 2),
+        "avg_profit": round(
+            sum(g["profit_percent"] for g in arb_groups.values()) / len(arb_groups), 2
+        ) if arb_groups else 0,
+    }
 
     now_cr = datetime.now(timezone.utc).astimezone(CR_TZ)
     return render_template(
         "dashboard.html",
         stats=stats,
+        value_stats=value_stats,
+        arb_stats=arb_stats,
         bets=display_bets,
         pending_groups=pending_groups,
         settled_bets=settled_bets,
+        arb_groups=list(arb_groups.values()),
         now=now_cr.strftime("%d/%m/%Y %H:%M"),
     )
 
