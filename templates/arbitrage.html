@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Arbitraje{% endblock %}
+{% block content %}
+
+    <div class="section-head">
+        <i class="ph-bold ph-scales"></i> Arbitraje
+        <span class="count">({{ arb_groups | length }} oportunidades)</span>
+    </div>
+
+    {% if arb_groups %}
+    <div class="metrics-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+        <div class="metric-box">
+            <div class="m-label">Arbs detectados</div>
+            <div class="m-val">{{ arb_stats.total }}</div>
+        </div>
+        <div class="metric-box">
+            <div class="m-label">Total apostado</div>
+            <div class="m-val">${{ "%.2f"|format(arb_stats.total_staked) }}</div>
+        </div>
+        <div class="metric-box">
+            <div class="m-label">Profit promedio</div>
+            <div class="m-val c-green">{{ "%.2f"|format(arb_stats.avg_profit) }}%</div>
+        </div>
+        <div class="metric-box">
+            <div class="m-label">P&amp;L arbs</div>
+            <div class="m-val {% if arb_stats.total_pnl >= 0 %}c-green{% else %}c-red{% endif %}">${{ "%.2f"|format(arb_stats.total_pnl) }}</div>
+        </div>
+    </div>
+
+    <div class="exp-bar" style="margin-bottom:20px">
+        <div class="exp-bar-header">
+            <span class="exp-bar-label"><i class="ph-bold ph-shield-check" style="color:var(--accent)"></i> Exposición Arb (total)</span>
+            <span class="exp-bar-nums">${{ "%.2f"|format(arb_stats.total_staked) }} / ${{ "%.2f"|format(exposure.arb.total_limit) }}</span>
+        </div>
+        <div class="exp-track">
+            <div class="exp-fill {% if exposure.arb.total_pct > 80 %}exp-fill-red{% elif exposure.arb.total_pct > 50 %}exp-fill-yellow{% else %}exp-fill-accent{% endif %}" style="width:{{ exposure.arb.total_pct }}%"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Sin límite diario — Arb es sin riesgo</div>
+    </div>
+
+    {% for arb in arb_groups %}
+    <div class="card" style="margin-bottom:12px;border-left:3px solid var(--accent)">
+        <div class="card-top">
+            <span class="tag" style="background:var(--accent);color:#000;font-weight:700">ARB +{{ "%.2f"|format(arb.profit_percent) }}%</span>
+            {% if arb.result %}
+            <span class="tag {% if arb.result == 'win' %}tag-win{% else %}tag-loss{% endif %}">{{ arb.result }}</span>
+            {% else %}
+            <span class="eta">pendiente</span>
+            {% endif %}
+        </div>
+        <div class="teams">{{ arb.event }}</div>
+        <div class="card-row"><span class="label">Mercado</span><span class="val">{{ arb.market }}</span></div>
+        <div class="card-row"><span class="label">Stake total</span><span class="val mono">${{ "%.2f"|format(arb.total_stake) }}</span></div>
+        <div class="card-divider"></div>
+        {% for leg in arb.legs %}
+        <div class="card-row">
+            <span class="label">{{ leg.outcome_display }} @ {{ "%.2f"|format(leg.odds_at_bet) }}</span>
+            <span class="val mono">${{ "%.2f"|format(leg.stake) }} ({{ leg.book_title }})</span>
+        </div>
+        {% endfor %}
+        {% if arb.total_pnl != 0 %}
+        <div class="potential"><span class="label">P&amp;L</span><span class="val {% if arb.total_pnl >= 0 %}c-green{% else %}c-red{% endif %}">${{ "%.2f"|format(arb.total_pnl) }}</span></div>
+        {% else %}
+        <div class="potential"><span class="label">Ganancia esperada</span><span class="val c-green">+${{ "%.2f"|format(arb.total_stake * arb.profit_percent / 100) }}</span></div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="tbl-wrap">
+        <div class="empty">
+            <i class="ph ph-scales"></i>
+            <p>No se han detectado oportunidades de arbitraje aún</p>
+            <p style="font-size:11px;margin-top:8px">Los arbs son muy raros (&lt;0.1% del mercado) y duran minutos. Con escaneo cada 45 min es normal no encontrar.</p>
+        </div>
+    </div>
+    {% endif %}
+
+{% endblock %}

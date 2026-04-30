@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Exposición{% endblock %}
+{% block content %}
+
+    <!-- STOP-LOSS STATUS -->
+    <div class="exp-section">
+        <div class="exp-title"><i class="ph-bold ph-warning-circle" style="color:var(--red)"></i> Stop-Loss</div>
+        <div class="exp-bar">
+            <div class="exp-bar-header">
+                <span class="exp-bar-label">Pérdida realizada</span>
+                <span class="exp-bar-nums {% if exposure.stop_loss.loss_pct > 10 %}c-red{% elif exposure.stop_loss.loss_pct > 5 %}c-yellow{% else %}c-green{% endif %}">
+                    {{ "%.1f"|format(exposure.stop_loss.loss_pct) }}% de {{ exposure.stop_loss.threshold }}%
+                </span>
+            </div>
+            <div class="exp-track" style="height:10px">
+                {% set sl_pct = (exposure.stop_loss.loss_pct / exposure.stop_loss.threshold * 100) if exposure.stop_loss.threshold > 0 else 0 %}
+                {% set sl_pct = [sl_pct, 100] | min %}
+                {% set sl_pct = [sl_pct, 0] | max %}
+                <div class="exp-fill {% if sl_pct > 80 %}exp-fill-red{% elif sl_pct > 50 %}exp-fill-yellow{% else %}exp-fill-green{% endif %}" style="width:{{ sl_pct }}%"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px">
+                <span class="dim">PnL realizado: <span class="mono {% if exposure.stop_loss.realized_pnl >= 0 %}c-green{% else %}c-red{% endif %}">{{ "%+.2f"|format(exposure.stop_loss.realized_pnl) }}</span></span>
+                <span class="dim">Bankroll: <span class="mono">${{ "%.2f"|format(exposure.stop_loss.realized_bankroll) }}</span></span>
+            </div>
+            <div style="margin-top:10px">
+                {% if exposure.stop_loss.is_active %}
+                <span class="status-badge status-danger"><i class="ph-bold ph-warning"></i> STOP-LOSS ACTIVADO — Todas las operaciones pausadas</span>
+                {% elif exposure.stop_loss.loss_pct > 10 %}
+                <span class="status-badge status-warn"><i class="ph-bold ph-warning"></i> Precaución — Cerca del límite</span>
+                {% else %}
+                <span class="status-badge status-ok"><i class="ph-bold ph-check-circle"></i> Normal — Sistema operando</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- VALUE BETTING LIMITS -->
+    <div class="exp-section">
+        <div class="exp-title"><i class="ph-bold ph-chart-line-up" style="color:var(--green)"></i> Value Betting — Límites</div>
+
+        <div class="exp-bar">
+            <div class="exp-bar-header">
+                <span class="exp-bar-label">Límite diario (hoy)</span>
+                <span class="exp-bar-nums">${{ "%.2f"|format(exposure.value.daily_used) }} / ${{ "%.2f"|format(exposure.value.daily_limit) }}</span>
+            </div>
+            <div class="exp-track" style="height:8px">
+                <div class="exp-fill {% if exposure.value.daily_pct > 80 %}exp-fill-red{% elif exposure.value.daily_pct > 50 %}exp-fill-yellow{% else %}exp-fill-green{% endif %}" style="width:{{ [exposure.value.daily_pct, 100] | min }}%"></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px">
+                {{ "%.1f"|format(exposure.value.daily_pct) }}% usado — Quedan ${{ "%.2f"|format(exposure.value.daily_limit - exposure.value.daily_used) }}
+                {% if exposure.value.daily_pct >= 100 %}
+                <span class="c-red" style="margin-left:8px">⛔ LÍMITE ALCANZADO</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="exp-bar">
+            <div class="exp-bar-header">
+                <span class="exp-bar-label">Exposición total (pendientes)</span>
+                <span class="exp-bar-nums">${{ "%.2f"|format(exposure.value.total_used) }} / ${{ "%.2f"|format(exposure.value.total_limit) }}</span>
+            </div>
+            <div class="exp-track" style="height:8px">
+                <div class="exp-fill {% if exposure.value.total_pct > 80 %}exp-fill-red{% elif exposure.value.total_pct > 50 %}exp-fill-yellow{% else %}exp-fill-green{% endif %}" style="width:{{ [exposure.value.total_pct, 100] | min }}%"></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px">
+                {{ "%.1f"|format(exposure.value.total_pct) }}% abierto
+                {% if exposure.value.total_pct >= 100 %}
+                <span class="c-red" style="margin-left:8px">⛔ LÍMITE ALCANZADO</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ARBITRAGE LIMITS -->
+    <div class="exp-section">
+        <div class="exp-title"><i class="ph-bold ph-scales" style="color:var(--accent)"></i> Arbitraje — Límites</div>
+
+        <div class="exp-bar">
+            <div class="exp-bar-header">
+                <span class="exp-bar-label">Límite diario</span>
+                <span class="exp-bar-nums c-green">SIN LÍMITE</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px">
+                Hoy: ${{ "%.2f"|format(exposure.arb.daily_used) }} apostado — El arbitraje es sin riesgo, no necesita límite diario
+            </div>
+        </div>
+
+        <div class="exp-bar">
+            <div class="exp-bar-header">
+                <span class="exp-bar-label">Exposición total (pendientes)</span>
+                <span class="exp-bar-nums">${{ "%.2f"|format(exposure.arb.total_used) }} / ${{ "%.2f"|format(exposure.arb.total_limit) }}</span>
+            </div>
+            <div class="exp-track" style="height:8px">
+                <div class="exp-fill {% if exposure.arb.total_pct > 80 %}exp-fill-red{% elif exposure.arb.total_pct > 50 %}exp-fill-yellow{% else %}exp-fill-accent{% endif %}" style="width:{{ [exposure.arb.total_pct, 100] | min }}%"></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px">
+                {{ "%.1f"|format(exposure.arb.total_pct) }}% abierto
+                {% if exposure.arb.total_pct >= 100 %}
+                <span class="c-red" style="margin-left:8px">⛔ LÍMITE ALCANZADO</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- TODAY'S BETS BREAKDOWN -->
+    <div class="exp-section">
+        <div class="exp-title"><i class="ph-bold ph-list-checks" style="color:var(--yellow)"></i> Desglose del día</div>
+        <div class="panel">
+            {% if exposure.today_bets %}
+            <div class="today-list">
+                {% for bet in exposure.today_bets %}
+                <div class="today-item">
+                    <span class="today-type {% if bet.bet_type == 'arb' %}today-type-arb{% else %}today-type-value{% endif %}">{{ bet.bet_type }}</span>
+                    <span style="flex:1;color:var(--text-bright);font-weight:500">{{ bet.event }}</span>
+                    <span class="dim">{{ bet.outcome }}</span>
+                    <span class="dim">{{ bet.book }}</span>
+                    <span class="mono" style="font-weight:600">${{ "%.2f"|format(bet.stake) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="padding:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px">
+                <span class="dim">{{ exposure.today_bets | length }} apuestas hoy</span>
+                <span class="mono" style="font-weight:600">Total: ${{ "%.2f"|format(exposure.value.daily_used + exposure.arb.daily_used) }}</span>
+            </div>
+            {% else %}
+            <div class="empty" style="padding:30px">
+                <i class="ph ph-sun-dim"></i>
+                <p>No hay apuestas hoy</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- RISK CONTROLS SUMMARY -->
+    <div class="exp-section">
+        <div class="exp-title"><i class="ph-bold ph-gear" style="color:var(--text-dim)"></i> Controles configurados</div>
+        <div class="tbl-wrap"><div class="tbl-scroll">
+            <table>
+                <thead><tr><th>Control</th><th>Value</th><th>Arb</th><th>Estado</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td>Límite diario</td>
+                        <td class="mono">10% (${{ "%.0f"|format(exposure.value.daily_limit) }})</td>
+                        <td class="mono c-green">Sin límite</td>
+                        <td>{% if exposure.value.daily_pct >= 100 %}<span class="tag tag-loss">alcanzado</span>{% else %}<span class="tag tag-win">ok</span>{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <td>Exposición total</td>
+                        <td class="mono">30% (${{ "%.0f"|format(exposure.value.total_limit) }})</td>
+                        <td class="mono">30% (${{ "%.0f"|format(exposure.arb.total_limit) }})</td>
+                        <td>{% if exposure.value.total_pct >= 100 or exposure.arb.total_pct >= 100 %}<span class="tag tag-loss">alcanzado</span>{% else %}<span class="tag tag-win">ok</span>{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <td>Stop-loss</td>
+                        <td class="mono" colspan="2">15% pérdida ($75)</td>
+                        <td>{% if exposure.stop_loss.is_active %}<span class="tag tag-loss">ACTIVADO</span>{% else %}<span class="tag tag-win">ok</span>{% endif %}</td>
+                    </tr>
+                    <tr>
+                        <td>EV mínimo</td>
+                        <td class="mono">&gt;5%</td>
+                        <td class="mono dim">n/a</td>
+                        <td><span class="tag tag-pend">filtro</span></td>
+                    </tr>
+                    <tr>
+                        <td>Kelly ÷4, cap 2%</td>
+                        <td class="mono">máx ${{ "%.0f"|format(exposure.bankroll * 0.02) }}/bet</td>
+                        <td class="mono">2% fijo (${{ "%.0f"|format(exposure.bankroll * 0.02) }})</td>
+                        <td><span class="tag tag-pend">sizing</span></td>
+                    </tr>
+                    <tr>
+                        <td>Odds rango</td>
+                        <td class="mono" colspan="2">1.30 — 10.00</td>
+                        <td><span class="tag tag-pend">filtro</span></td>
+                    </tr>
+                    <tr>
+                        <td>Mín. casas</td>
+                        <td class="mono">≥3 bookmakers</td>
+                        <td class="mono dim">n/a</td>
+                        <td><span class="tag tag-pend">filtro</span></td>
+                    </tr>
+                    <tr>
+                        <td>Profit mín. arb</td>
+                        <td class="mono dim">n/a</td>
+                        <td class="mono">≥0.5%</td>
+                        <td><span class="tag tag-pend">filtro</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div></div>
+    </div>
+
+{% endblock %}

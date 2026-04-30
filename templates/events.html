@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Eventos{% endblock %}
+{% block content %}
+
+    <div class="section-head">
+        <i class="ph-bold ph-calendar-blank"></i> Eventos disponibles
+        <span class="count">({{ total_events }} eventos en {{ events_by_sport | length }} deportes)</span>
+    </div>
+
+    <div class="metrics-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+        <div class="metric-box">
+            <div class="m-label">Total eventos</div>
+            <div class="m-val">{{ total_events }}</div>
+            <div class="m-sub">Último scouting</div>
+        </div>
+        <div class="metric-box">
+            <div class="m-label">Deportes activos</div>
+            <div class="m-val">{{ events_by_sport | length }}</div>
+        </div>
+        <div class="metric-box">
+            <div class="m-label">Última actualización</div>
+            <div class="m-val" style="font-size:14px">{{ last_scout_time or '—' }}</div>
+        </div>
+    </div>
+
+    {% for sport_key, sport_data in events_by_sport.items() %}
+    <div class="day-group">
+        <div class="day-header" onclick="toggleDay(this)">
+            <span class="row-item">
+                {% if 'soccer' in sport_key %}
+                <span class="dot" style="background:var(--green)"></span>
+                {% elif 'basketball' in sport_key %}
+                <span class="dot" style="background:var(--purple)"></span>
+                {% else %}
+                <span class="dot" style="background:var(--yellow)"></span>
+                {% endif %}
+            </span>
+            <span class="day-label">{{ sport_data.title }}</span>
+            <span class="day-count">{{ sport_data.events | length }} eventos</span>
+            <i class="ph-bold ph-caret-right chevron"></i>
+        </div>
+        <div class="day-cards collapsed">
+            {% for event in sport_data.events %}
+            <div class="card">
+                <div class="card-top">
+                    {% if 'soccer' in sport_key %}
+                    <span class="tag tag-fut"><i class="ph-fill ph-soccer-ball"></i></span>
+                    {% elif 'basketball' in sport_key %}
+                    <span class="tag tag-bsk"><i class="ph-fill ph-basketball"></i></span>
+                    {% endif %}
+                    <span class="eta">{{ event.commence_time_cr }}</span>
+                </div>
+                <div class="teams">{{ event.home_team }} <span>vs</span> {{ event.away_team }}</div>
+                <div class="event-time">{{ event.commence_time_full }} CR</div>
+                {% if event.has_bet %}
+                <div style="margin-top:4px"><span class="tag tag-win"><i class="ph-bold ph-check"></i> Ya apostado</span></div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not events_by_sport %}
+    <div class="tbl-wrap">
+        <div class="empty">
+            <i class="ph ph-calendar-x"></i>
+            <p>No hay datos de scouting disponibles</p>
+            <p style="font-size:11px;margin-top:8px">Los eventos se cargan en cada ciclo del scanner</p>
+        </div>
+    </div>
+    {% endif %}
+
+{% endblock %}
